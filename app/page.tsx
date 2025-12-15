@@ -15,6 +15,7 @@ export default function CommandCenter() {
     { id: '2', title: 'Draft weekly newsletter content', category: 'Content', status: 'pending' },
     { id: '3', title: 'Execute social media automation setup', category: 'Automation', status: 'pending' },
         { id: '4', title: 'Task Executioner - Auto-execute pending tasks', category: 'Automation', status: 'pending' },
+      ])
 
       const [autoExecuting, setAutoExecuting] = useState(false)
 
