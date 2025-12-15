@@ -35,7 +35,6 @@ export default function CommandCenter() {
     setAutoExecuting(false)
     console.log('Task Executioner: All pending tasks completed!')
   }
-  ])
   const [loading, setLoading] = useState<string | null>(null)
 
   const executeTask = async (taskId: string) => {
