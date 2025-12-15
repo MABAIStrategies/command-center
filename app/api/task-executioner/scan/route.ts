@@ -21,6 +21,7 @@ function getGoogleAuth() {
   const auth = new google.auth.GoogleAuth({
     credentials: {
       client_email: process.env.GOOGLE_CLIENT_EMAIL,
+            'https://www.googleapis.com/auth/gmail.readonly',
       private_key: process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
     },
     scopes: [
@@ -116,6 +117,98 @@ export async function GET() {
       tasksFound: driveTasks.length,
       tasks: driveTasks,
       sources: {
+
+        // Scan Gmail for unanswered emails and customer inquiries
+async function scanGmail(): Promise<DiscoveredTask[]> {
+  try {
+    const auth = getGoogleAuth()
+    const gmail = google.gmail({ version: 'v1', auth })
+    
+    const tasks: DiscoveredTask[] = []
+    
+    // Search for unread emails in inbox (potential customer inquiries)
+    const response = await gmail.users.messages.list({
+      userId: 'me',
+      q: 'is:unread in:inbox',
+      maxResults: 20,
+    })
+    
+    if (response.data.messages) {
+      for (const message of response.data.messages) {
+        const fullMessage = await gmail.users.messages.get({
+          userId: 'me',
+          id: message.id!,
+          format: 'full',
+        })
+        
+        const headers = fullMessage.data.payload?.headers || []
+        const subject = headers.find(h => h.name === 'Subject')?.value || 'No subject'
+        const from = headers.find(h => h.name === 'From')?.value || 'Unknown sender'
+        const date = headers.find(h => h.name === 'Date')?.value || ''
+        
+        // Get email body
+        let body = ''
+        if (fullMessage.data.payload?.body?.data) {
+          body = Buffer.from(fullMessage.data.payload.body.data, 'base64').toString('utf-8')
+        } else if (fullMessage.data.payload?.parts) {
+          for (const part of fullMessage.data.payload.parts) {
+            if (part.mimeType === 'text/plain' && part.body?.data) {
+              body = Buffer.from(part.body.data, 'base64').toString('utf-8')
+              break
+            }
+          }
+        }
+        
+        // Analyze if this email needs a response
+        const analysis = await analyzeEmail(subject, from, body)
+        
+        if (analysis.requiresResponse) {
+          tasks.push({
+            id: message.id!,
+            source: 'gmail',
+            type: analysis.type,
+            title: `Email: ${subject}`,
+            description: analysis.description,
+            priority: analysis.priority,
+            actionable: true,
+            metadata: {
+              from,
+              subject,
+              date,
+              threadId: message.threadId,
+              snippet: fullMessage.data.snippet,
+            },
+          })
+        }
+      }
+    }
+    
+    return tasks
+  } catch (error) {
+    console.error('Error scanning Gmail:', error)
+    return []
+  }
+}
+
+// Analyze if an email requires a response
+async function analyzeEmail(subject: string, from: string, body: string) {
+  const completion = await openai.chat.completions.create({
+    model: 'gpt-4',
+    messages: [
+      {
+        role: 'system',
+        content: `You are an AI that analyzes emails to determine if they require a response.\nRespond in JSON format with:\n{\n  "requiresResponse": boolean,\n  "type": "customer_inquiry" | "client_request" | "collaboration" | "spam" | "other",\n  "description": "Brief description of what action is needed",\n  "priority": "high" | "medium" | "low"\n}`,
+      },
+      {
+        role: 'user',
+        content: `From: ${from}\nSubject: ${subject}\n\nBody Preview:\n${body.substring(0, 500)}`,
+      },
+    ],
+    response_format: { type: 'json_object' },
+  })
+  
+  return JSON.parse(completion.choices[0].message.content!)
+}
         drive: driveTasks.length,
         gmail: 0,
         github: 0,
