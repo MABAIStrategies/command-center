@@ -14,6 +14,26 @@ export default function CommandCenter() {
     { id: '1', title: 'Research competitor analysis for MAB AI', category: 'Marketing', status: 'pending' },
     { id: '2', title: 'Draft weekly newsletter content', category: 'Content', status: 'pending' },
     { id: '3', title: 'Execute social media automation setup', category: 'Automation', status: 'pending' },
+        { id: '4', title: 'Task Executioner - Auto-execute pending tasks', category: 'Automation', status: 'pending' },
+
+      const [autoExecuting, setAutoExecuting] = useState(false)
+
+  const autoExecuteTasks = async () => {
+    setAutoExecuting(true)
+    const pendingTasks = tasks.filter(t => t.status === 'pending' && t.id !== '4')
+    
+    console.log(`Task Executioner: Found ${pendingTasks.length} pending tasks`)
+    
+    for (const task of pendingTasks) {
+      console.log(`Task Executioner: Executing ${task.title}...`)
+      await executeTask(task.id)
+      // Wait 2 seconds between tasks
+      await new Promise(resolve => setTimeout(resolve, 2000))
+    }
+    
+    setAutoExecuting(false)
+    console.log('Task Executioner: All pending tasks completed!')
+  }
   ])
   const [loading, setLoading] = useState<string | null>(null)
 
@@ -58,11 +78,10 @@ export default function CommandCenter() {
                 </div>
                 <button
                   onClick={() => executeTask(task.id)}
-                  disabled={loading === task.id}
-                  className="px-4 py-2 bg-command-accent text-white rounded-md hover:bg-blue-600 disabled:opacity-50"
+            onClick={() => task.id === '4' ? autoExecuteTasks() : executeTask(task.id)}
+            disabled={task.id === '4' ? autoExecuting : loading === task.id}                  className="px-4 py-2 bg-command-accent text-white rounded-md hover:bg-blue-600 disabled:opacity-50"
                 >
-                  {loading === task.id ? 'Executing...' : 'Execute'}
-                </button>
+            {task.id === '4' ? (autoExecuting ? 'Auto-Executing All...' : 'Start Auto-Execute') : (loading === task.id ? 'Executing...' : 'Execute')}                </button>
               </div>
               <div className="mt-4">
                 <span className={`text-sm px-2 py-1 rounded ${
