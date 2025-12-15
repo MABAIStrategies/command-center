@@ -19,12 +19,20 @@ export default function CommandCenter() {
 
   const executeTask = async (taskId: string) => {
     setLoading(taskId)
+        const task = tasks.find(t => t.id === taskId)
+    if (!task) {
+      console.error('Task not found')
+      return
+    }
     try {
       const response = await fetch('/api/agents/execute', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ taskId }),
-      })
+        body: JSON.stringify({ 
+          taskId: task.id,
+          title: task.title,
+          category: task.category
+        }),      })
       const data = await response.json()
       setTasks(tasks.map(t => t.id === taskId ? { ...t, status: 'completed' } : t))
     } catch (error) {
